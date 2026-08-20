@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulasi Parameter Lingkungan (Ecosystem Simulator)</title>
+<style>
+  :root{
+    --deep-water:#0A3540;
+    --mid-water:#0F5765;
+    --shallow-water:#3FB8A6;
+    --foam:#EFF8F5;
+    --sand:#E7C583;
+    --sand-dark:#B98E4B;
+    --coral-warn:#E85D4E;
+    --coral-warn-deep:#8E2E22;
+    --amber-warn:#E0A438;
+    --amber-warn-deep:#7A5211;
+    --ink:#062028;
+    --ink-soft:#3A5C63;
+    --panel-bg:#0E4650;
+    --panel-line:rgba(255,255,255,0.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; height:100%; overflow:hidden;
+    background:#04161c;
+  }
+  body{
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Segoe UI',Tahoma,Verdana,sans-serif;
+    color:var(--foam);
+  }
+  .slide-shell{
+    position:absolute; top:50%; left:50%;
+    width:1280px; height:720px;
+    transform-origin:center center;
+  }
+  .slide{
+    width:100%; height:100%;
+    box-sizing:border-box;
+    display:flex; flex-direction:column;
+    padding:36px 0px 30px 20px;
+    background:
+      radial-gradient(1200px 700px at 15% -10%, #124b58 0%, transparent 60%),
+      linear-gradient(180deg,#062028 0%, #0A3540 100%);
+    box-shadow:0 30px 90px rgba(0,0,0,0.55);
+  }
+  h1{
+    font-family:'Trebuchet MS','Segoe UI',Verdana,sans-serif;
+    font-weight:800;
+    font-size:36px;
+    margin:0 0 6px;
+    color:var(--foam);
+  }
+  .sub{
+    color:#AFD4D0;
+    font-size:17px;
+    margin:0 0 16px;
+    line-height:1.4;
+  }
+  .stage{
+    display:flex;
+    gap:12px;
+    flex:1;
+    min-height:0;
+  }
+
+  /* ---- control panel ---- */
+  .panel{
+    width:290px;
+    flex:0 0 290px;
+    background:var(--panel-bg);
+    border:1px solid var(--panel-line);
+    border-radius:18px;
+    padding:20px 18px 20px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+  .panel h2{
+    font-family:'Trebuchet MS','Segoe UI',Verdana,sans-serif;
+    font-size:16px;
+    font-weight:600;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--shallow-water);
+    margin:0;
+  }
+  .slider-block{margin:0;}
+  .slider-head{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom:8px;
+  }
+  .slider-label{font-size:16px; font-weight:700; color:var(--foam);}
+  .slider-value{
+    font-family:'Trebuchet MS','Segoe UI',Verdana,sans-serif;
+    font-weight:600; font-size:16px;
+    padding:2px 10px; border-radius:20px;
+    background:rgba(255,255,255,0.08);
+    transition:background .25s, color .25s;
+  }
+  .slider-value.good{ color:#B7F0C6; background:rgba(88,190,120,0.18);}
+  .slider-value.warn{ color:#FFE0A3; background:rgba(224,164,56,0.2);}
+  .slider-value.bad{ color:#FFC1B8; background:rgba(232,93,78,0.22);}
+
+  input[type=range]{
+    -webkit-appearance:none;
+    width:100%;
+    height:13px;
+    border-radius:8px;
+    background:rgba(255,255,255,0.14);
+    outline:none;
+    margin:10px 0 8px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:30px;height:30px;border-radius:50%;
+    background:var(--foam);
+    border:4px solid var(--shallow-water);
+    cursor:pointer;
+    box-shadow:0 2px 5px rgba(0,0,0,0.45);
+    transition:border-color .2s;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:30px;height:30px;border-radius:50%;
+    background:var(--foam);
+    border:4px solid var(--shallow-water);
+    cursor:pointer;
+  }
+  .range-ends{
+    display:flex; justify-content:space-between;
+    font-size:13px; color:var(--ink-soft); color:#7FA3A0;
+  }
+  .zone-bar{
+    height:7px; border-radius:5px; margin-top:9px;
+    display:flex; overflow:hidden;
+  }
+  .zone-bar span{height:100%;}
+
+  .fish-panel{
+    width:290px;
+    flex:0 0 290px;
+    background:var(--panel-bg);
+    border:1px solid var(--panel-line);
+    border-radius:18px;
+    padding:22px 20px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+  }
+  .fish-panel h2{
+    font-family:'Trebuchet MS','Segoe UI',Verdana,sans-serif;
+    font-size:19px;
+    font-weight:600;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--shallow-water);
+    margin:0 0 20px;
+  }
+  .fish-row{
+    display:flex; align-items:center; gap:14px;
+    font-size:19px; color:#CFE7E3;
+    margin-bottom:20px;
+  }
+  .fish-row:last-child{margin-bottom:0;}
+  .fish-row svg{flex:0 0 auto;}
+  .fish-row b{color:var(--foam); font-weight:700;}
+  .fish-row span{color:#8FB8B3; display:block; font-size:15.5px; margin-top:3px; line-height:1.35;}
+
+  /* ---- aquarium ---- */
+  .aquarium-col{display:flex; flex-direction:column; gap:16px;}
+  .status-strip{
+    display:flex; gap:10px; flex-wrap:wrap;
+  }
+  .status-pill{
+    font-family:'Trebuchet MS','Segoe UI',Verdana,sans-serif;
+    font-size:14.5px; font-weight:600;
+    padding:6px 14px; border-radius:20px;
+    display:flex; align-items:center; gap:7px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid var(--panel-line);
+  }
+  .status-pill i{width:8px;height:8px;border-radius:50%; display:inline-block;}
+  .status-pill.good i{background:#5BD98A;}
+  .status-pill.warn i{background:var(--amber-warn);}
+  .status-pill.bad i{background:var(--coral-warn);}
+
+  .aquarium{
+    position:relative;
+    border-radius:20px;
+    overflow:hidden;
+    flex:1;
+    min-height:0;
+    background:linear-gradient(180deg,#1C7688 0%, #0F5765 45%, #0A3F4A 100%);
+    border:1px solid rgba(255,255,255,0.12);
+  }
+  .surface{
+    position:absolute; top:0; left:0; right:0; height:26px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+  }
+  .glass-glow{
+    position:absolute; inset:0;
+    background:radial-gradient(600px 260px at 20% 0%, rgba(255,255,255,0.10), transparent 60%);
+    pointer-events:none;
+  }
+  .sandbed{
+    position:absolute; left:0; right:0; bottom:0; height:34px;
+    background:linear-gradient(180deg,var(--sand),var(--sand-dark));
+  }
+  .plant{
+    position:absolute; bottom:30px; width:10px; height:70px;
+    background:linear-gradient(180deg,#2E8F65,#1B5E43);
+    border-radius:10px 10px 0 0;
+    transform-origin:bottom center;
+    animation:sway 4s ease-in-out infinite;
+    opacity:.85;
+  }
+  @keyframes sway{
+    0%,100%{transform:rotate(-6deg);}
+    50%{transform:rotate(6deg);}
+  }
+  .bubble{
+    position:absolute;
+    bottom:0;
+    width:6px;height:6px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.55);
+    animation:rise linear infinite;
+  }
+  @keyframes rise{
+    0%{transform:translateY(0) translateX(0); opacity:.8;}
+    100%{transform:translateY(-420px) translateX(10px); opacity:0;}
+  }
+  .fish{
+    position:absolute;
+    width:88px; height:50px;
+    will-change:transform;
+    filter:none;
+    transition:filter .6s ease;
+  }
+  .fish.critical{filter:grayscale(0.75) brightness(0.75);}
+  .fish svg{width:100%; height:100%; display:block;}
+  .fish .tail{transform-origin:38px 16px; animation:tailwag .5s ease-in-out infinite alternate;}
+  @keyframes tailwag{
+    from{transform:rotate(-14deg);}
+    to{transform:rotate(14deg);}
+  }
+  .fish.stressed .tail{animation-duration:.18s;}
+  .fish.critical .tail{animation-duration:1.4s;}
+
+  .popup{
+    position:absolute;
+    left:16px; right:16px; top:16px;
+    background:rgba(8,32,38,0.92);
+    border:1px solid rgba(255,255,255,0.16);
+    border-left:4px solid var(--coral-warn);
+    border-radius:12px;
+    padding:12px 16px;
+    font-size:15.5px;
+    line-height:1.5;
+    color:#FFE8E4;
+    display:none;
+    backdrop-filter:blur(2px);
+  }
+  .popup.show{display:block;}
+  .popup.warn{border-left-color:var(--amber-warn); color:#FFF0D2;}
+  .popup.good{border-left-color:#5BD98A; color:#DFFBE7;}
+  .popup b{font-family:'Trebuchet MS','Segoe UI',Verdana,sans-serif; font-weight:600;}
+
+
+</style>
+</head>
+<body>
+<div class="slide-shell">
+<div class="slide">
+  <h1>Simulasi Parameter Lingkungan (Ecosystem Simulator)</h1>
+  <p class="sub">Geser tombol kualitas air di panel kiri, lalu perhatikan reaksi Ikan Mas, Nila, dan Lele di akuarium virtual.</p>
+
+  <div class="stage">
+    <div class="panel">
+      <h2>Kontrol Panel</h2>
+
+      <div class="slider-block">
+        <div class="slider-head">
+          <span class="slider-label">Suhu</span>
+          <span class="slider-value good" id="suhu-val">27°C</span>
+        </div>
+        <input type="range" id="suhu" min="20" max="35" step="1" value="27">
+        <div class="range-ends"><span>20°C</span><span>35°C</span></div>
+        <div class="zone-bar" id="suhu-zone"></div>
+      </div>
+
+      <div class="slider-block">
+        <div class="slider-head">
+          <span class="slider-label">pH</span>
+          <span class="slider-value good" id="ph-val">7.0</span>
+        </div>
+        <input type="range" id="ph" min="4" max="9" step="0.1" value="7">
+        <div class="range-ends"><span>4</span><span>9</span></div>
+        <div class="zone-bar" id="ph-zone"></div>
+      </div>
+
+      <div class="slider-block">
+        <div class="slider-head">
+          <span class="slider-label">DO (oksigen terlarut)</span>
+          <span class="slider-value good" id="do-val">6 mg/L</span>
+        </div>
+        <input type="range" id="do" min="1" max="8" step="0.5" value="6">
+        <div class="range-ends"><span>1 mg/L</span><span>8 mg/L</span></div>
+        <div class="zone-bar" id="do-zone"></div>
+      </div>
+    </div>
+
+    <div class="fish-panel">
+      <h2>Ikan di Akuarium</h2>
+      <div class="fish-row">
+        <svg viewBox="0 0 56 32" width="52" height="30"><path d="M11 16 L-6 3 L-1 16 L-6 29 Z" fill="#E2600B"/><ellipse cx="28" cy="16" rx="17" ry="10" fill="#FF8A1E"/><path d="M20 7 Q28 -3 36 6 Q29 9 22 9 Z" fill="#E2600B"/><path d="M34 22 Q38 29 33 29 Q30 25 30 22 Z" fill="#E2600B"/><path d="M18 22 Q13 27 17 28 Q21 25 22 21 Z" fill="#E2600B"/><circle cx="41" cy="13" r="3.3" fill="#FFF7EE"/><circle cx="42" cy="13" r="1.6" fill="#1A0F04"/></svg>
+        <div><b>Ikan Mas</b><span>toleransi sedang, nyaman di air hangat &amp; netral</span></div>
+      </div>
+      <div class="fish-row">
+        <svg viewBox="0 0 56 32" width="52" height="30"><path d="M13 16 L-4 7 L-4 25 Z" fill="#3B9DE8"/><ellipse cx="27" cy="16" rx="18" ry="9" fill="#1E7FE0"/><path d="M18 8 Q27 1 36 8 L34 11 Q27 9 20 11 Z" fill="#1670C7"/><path d="M22 23 Q19 29 23 28 Q25 25 25 22 Z" fill="#1670C7"/><line x1="21" y1="8" x2="20" y2="24" stroke="#1670C7" stroke-width="1.3" opacity="0.55"/><line x1="27" y1="7" x2="26" y2="25" stroke="#1670C7" stroke-width="1.3" opacity="0.55"/><line x1="33" y1="8" x2="33" y2="24" stroke="#1670C7" stroke-width="1.3" opacity="0.55"/><line x1="38" y1="10" x2="39" y2="22" stroke="#1670C7" stroke-width="1.3" opacity="0.55"/><ellipse cx="21" cy="19" rx="3.4" ry="4" fill="#7EC1F5" opacity="0.85"/><circle cx="42" cy="13" r="1.7" fill="#0A2030"/></svg>
+        <div><b>Ikan Nila</b><span>paling sensitif — cepat stres bila pH/DO buruk</span></div>
+      </div>
+      <div class="fish-row">
+        <svg viewBox="0 0 56 32" width="52" height="30"><path d="M11 17 L-6 8 L-6 26 Z" fill="#5B6065"/><ellipse cx="29" cy="17" rx="20" ry="7.5" fill="#7C8186"/><ellipse cx="43" cy="17" rx="7" ry="6.3" fill="#63686D"/><path d="M13 22 Q29 27 45 21 Q29 24 13 22 Z" fill="#C7CBCC"/><path d="M24 9 L30 2 L34 10 Z" fill="#5B6065"/><circle cx="46" cy="14" r="1.6" fill="#111"/><ellipse cx="49" cy="19" rx="2.3" ry="1.3" fill="#E39B9B"/><path d="M49 18 Q54 15 56 12" stroke="#C7CBCC" stroke-width="1" fill="none" stroke-linecap="round"/><path d="M50 20 Q56 20 56 20" stroke="#C7CBCC" stroke-width="1" fill="none" stroke-linecap="round"/><path d="M49 21 Q54 25 56 28" stroke="#C7CBCC" stroke-width="1" fill="none" stroke-linecap="round"/></svg>
+        <div><b>Ikan Lele</b><span>paling tahan banting, kuat di oksigen rendah</span></div>
+      </div>
+    </div>
+
+    <div class="aquarium-col">
+      <div class="status-strip" id="status-strip"></div>
+
+      <div class="aquarium" id="aquarium">
+        <div class="popup" id="popup"></div>
+        <div class="glass-glow"></div>
+        <div class="surface"></div>
+        <div class="plant" style="left:8%;"></div>
+        <div class="plant" style="left:20%; height:50px; animation-delay:.6s;"></div>
+        <div class="plant" style="right:12%; height:60px; animation-delay:1.1s;"></div>
+        <div class="plant" style="right:22%; height:42px; animation-delay:.3s;"></div>
+        <div class="sandbed"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+  function fitSlide(){
+    var shell=document.querySelector('.slide-shell');
+    var scale=Math.min(window.innerWidth/1280, window.innerHeight/720);
+    shell.style.transform='translate(-50%,-50%) scale('+scale+')';
+  }
+  window.addEventListener('resize', fitSlide);
+  fitSlide();
+})();
+</script>
+<script>
+(function(){
+  const suhuInput=document.getElementById('suhu');
+  const phInput=document.getElementById('ph');
+  const doInput=document.getElementById('do');
+  const suhuVal=document.getElementById('suhu-val');
+  const phVal=document.getElementById('ph-val');
+  const doVal=document.getElementById('do-val');
+  const suhuZone=document.getElementById('suhu-zone');
+  const phZone=document.getElementById('ph-zone');
+  const doZone=document.getElementById('do-zone');
+  const popup=document.getElementById('popup');
+  const statusStrip=document.getElementById('status-strip');
+  const aquarium=document.getElementById('aquarium');
+
+  function buildZoneBar(el, ranges, min, max){
+    el.innerHTML='';
+    ranges.forEach(r=>{
+      const s=document.createElement('span');
+      const width=((r.to-r.from)/(max-min))*100;
+      s.style.width=width+'%';
+      s.style.background = r.c==='good' ? '#5BD98A' : r.c==='warn' ? '#E0A438' : '#E85D4E';
+      el.appendChild(s);
+    });
+  }
+  buildZoneBar(suhuZone,[{from:20,to:23,c:'bad'},{from:23,to:25,c:'warn'},{from:25,to:31,c:'good'},{from:31,to:33,c:'warn'},{from:33,to:35,c:'bad'}],20,35);
+  buildZoneBar(phZone,[{from:4,to:5.5,c:'bad'},{from:5.5,to:6.5,c:'warn'},{from:6.5,to:8.5,c:'good'},{from:8.5,to:8.8,c:'warn'},{from:8.8,to:9,c:'bad'}],4,9);
+  buildZoneBar(doZone,[{from:1,to:2,c:'bad'},{from:2,to:4,c:'warn'},{from:4,to:8,c:'good'}],1,8);
+
+  function zoneOf(kind,v){
+    if(kind==='suhu') return v<23||v>33?'bad':(v<25||v>31?'warn':'good');
+    if(kind==='ph') return v<5.5||v>8.8?'bad':(v<6.5||v>8.5?'warn':'good');
+    if(kind==='do') return v<2?'bad':(v<4?'warn':'good');
+  }
+
+  const species=[
+    {name:'mas', label:'Ikan Mas', tempOpt:[24,31], phOpt:[6,8.5], doMin:3, hardiness:1.0, count:2, color:'#FF8A1E', dark:'#E2600B'},
+    {name:'nila', label:'Ikan Nila', tempOpt:[25,32], phOpt:[6.5,8.5], doMin:3.5, hardiness:0.75, count:2, color:'#1E7FE0', dark:'#1670C7'},
+    {name:'lele', label:'Ikan Lele', tempOpt:[23,32], phOpt:[6,9], doMin:1.5, hardiness:1.4, count:2, color:'#7C8186', dark:'#5B6065'}
+  ];
+
+  function fishSVG(sp){
+    if(sp.name==='mas'){
+      return '<svg viewBox="0 0 56 32"><path class="tail" d="M11 16 L-6 3 L-1 16 L-6 29 Z" fill="#E2600B"/><ellipse cx="28" cy="16" rx="17" ry="10" fill="#FF8A1E"/><path d="M20 7 Q28 -3 36 6 Q29 9 22 9 Z" fill="#E2600B"/><path d="M34 22 Q38 29 33 29 Q30 25 30 22 Z" fill="#E2600B"/><path d="M18 22 Q13 27 17 28 Q21 25 22 21 Z" fill="#E2600B"/><circle cx="41" cy="13" r="3.3" fill="#FFF7EE"/><circle cx="42" cy="13" r="1.6" fill="#1A0F04"/></svg>';
+    }
+    if(sp.name==='nila'){
+      return '<svg viewBox="0 0 56 32"><path class="tail" d="M13 16 L-4 7 L-4 25 Z" fill="#3B9DE8"/><ellipse cx="27" cy="16" rx="18" ry="9" fill="#1E7FE0"/><path d="M18 8 Q27 1 36 8 L34 11 Q27 9 20 11 Z" fill="#1670C7"/><path d="M22 23 Q19 29 23 28 Q25 25 25 22 Z" fill="#1670C7"/><line x1="21" y1="8" x2="20" y2="24" stroke="#1670C7" stroke-width="1.3" opacity="0.55"/><line x1="27" y1="7" x2="26" y2="25" stroke="#1670C7" stroke-width="1.3" opacity="0.55"/><line x1="33" y1="8" x2="33" y2="24" stroke="#1670C7" stroke-width="1.3" opacity="0.55"/><line x1="38" y1="10" x2="39" y2="22" stroke="#1670C7" stroke-width="1.3" opacity="0.55"/><ellipse cx="21" cy="19" rx="3.4" ry="4" fill="#7EC1F5" opacity="0.85"/><circle cx="42" cy="13" r="1.7" fill="#0A2030"/></svg>';
+    }
+    return '<svg viewBox="0 0 56 32"><path class="tail" d="M11 17 L-6 8 L-6 26 Z" fill="#5B6065"/><ellipse cx="29" cy="17" rx="20" ry="7.5" fill="#7C8186"/><ellipse cx="43" cy="17" rx="7" ry="6.3" fill="#63686D"/><path d="M13 22 Q29 27 45 21 Q29 24 13 22 Z" fill="#C7CBCC"/><path d="M24 9 L30 2 L34 10 Z" fill="#5B6065"/><circle cx="46" cy="14" r="1.6" fill="#111"/><ellipse cx="49" cy="19" rx="2.3" ry="1.3" fill="#E39B9B"/><path d="M49 18 Q54 15 56 12" stroke="#C7CBCC" stroke-width="1" fill="none" stroke-linecap="round"/><path d="M50 20 Q56 20 56 20" stroke="#C7CBCC" stroke-width="1" fill="none" stroke-linecap="round"/><path d="M49 21 Q54 25 56 28" stroke="#C7CBCC" stroke-width="1" fill="none" stroke-linecap="round"/></svg>';
+  }
+
+  const fishList=[];
+  species.forEach(sp=>{
+    for(let i=0;i<sp.count;i++){
+      const el=document.createElement('div');
+      el.className='fish';
+      el.innerHTML=fishSVG(sp);
+      aquarium.appendChild(el);
+      fishList.push({
+        sp, el,
+        x:Math.random()*260+20,
+        y:80+Math.random()*220,
+        dir: Math.random()<0.5?1:-1,
+        baseSpeed:0.4+Math.random()*0.3,
+        wobble:Math.random()*Math.PI*2
+      });
+    }
+  });
+
+  for(let i=0;i<14;i++){
+    const b=document.createElement('div');
+    b.className='bubble';
+    b.style.left=(5+Math.random()*90)+'%';
+    b.style.animationDuration=(3+Math.random()*3)+'s';
+    b.style.animationDelay=(Math.random()*4)+'s';
+    aquarium.appendChild(b);
+  }
+
+  function fishState(sp, suhu, ph, doVal){
+    let score=0;
+    if(suhu<sp.tempOpt[0]-6 || suhu>sp.tempOpt[1]+3) score+=2;
+    else if(suhu<sp.tempOpt[0] || suhu>sp.tempOpt[1]) score+=1;
+    if(ph<sp.phOpt[0]-1.2 || ph>sp.phOpt[1]+0.6) score+=2;
+    else if(ph<sp.phOpt[0] || ph>sp.phOpt[1]) score+=1;
+    if(doVal<sp.doMin-1.5) score+=2;
+    else if(doVal<sp.doMin) score+=1;
+    score = score/sp.hardiness;
+    if(score>=3.2) return 'critical';
+    if(score>=1.3) return 'stressed';
+    return 'healthy';
+  }
+
+  let W=0,H=0;
+  function measure(){ W=aquarium.clientWidth; H=aquarium.clientHeight; }
+  window.addEventListener('resize', measure);
+
+  function tick(){
+    fishList.forEach(f=>{
+      const st=fishState(f.sp, +suhuInput.value, +phInput.value, +doInput.value);
+      f.el.classList.remove('healthy','stressed','critical');
+      f.el.classList.add(st);
+      let speed=f.baseSpeed;
+      let targetYband=[80,300];
+      if(st==='stressed'){ speed=f.baseSpeed*2.4; }
+      if(st==='critical'){ speed=f.baseSpeed*0.35; }
+      if(+doInput.value<3){ targetYband=[30,90]; speed=Math.max(speed, f.baseSpeed*1.6); }
+
+      f.wobble+=0.06;
+      const wob = st==='stressed' ? Math.sin(f.wobble*4)*10 : Math.sin(f.wobble)*2.5;
+
+      f.x += f.dir*speed*(st==='critical'?0.6:1.4);
+      if(f.x>W-104){ f.dir=-1; }
+      if(f.x<10){ f.dir=1; }
+
+      const midTarget=(targetYband[0]+targetYband[1])/2;
+      f.y += (midTarget-f.y)*0.01 + Math.sin(f.wobble*0.7)*0.3;
+      f.y = Math.max(30, Math.min(H-64, f.y));
+
+      const flip = f.dir<0 ? 'scaleX(-1)' : 'scaleX(1)';
+      const tilt = st==='critical' ? 'rotate(14deg)' : 'rotate(0deg)';
+      f.el.style.transform = 'translate('+f.x+'px,'+(f.y+wob)+'px) '+flip+' '+tilt;
+    });
+    requestAnimationFrame(tick);
+  }
+
+  function overallZoneClass(zones){
+    if(zones.includes('bad')) return 'bad';
+    if(zones.includes('warn')) return 'warn';
+    return 'good';
+  }
+
+  function updatePopup(suhu, ph, doVal, zSuhu, zPh, zDo){
+    let cls='good', html='';
+    if(ph<=5.5 && doVal<=3){
+      cls='bad';
+      html='<b>Ikan Nila stres!</b> pH '+ph+' + DO '+doVal+' mg/L membuat Nila berenang ke permukaan mencari oksigen.';
+    } else if(doVal<=2){
+      cls='bad';
+      html='<b>Oksigen sangat rendah!</b> Hampir semua ikan naik ke permukaan dan megap-megap.';
+    } else if(suhu>=33){
+      cls='bad';
+      html='<b>Suhu terlalu panas!</b> Metabolisme ikan naik drastis, oksigen terlarut ikut menurun.';
+    } else if(suhu<=21){
+      cls='bad';
+      html='<b>Suhu terlalu dingin!</b> Ikan menjadi lemas dan geraknya melambat.';
+    } else if(ph<=5 || ph>=8.8){
+      cls='bad';
+      html='<b>pH ekstrem!</b> Insang ikan berisiko iritasi pada kondisi ini.';
+    } else if(zSuhu==='warn' || zPh==='warn' || zDo==='warn'){
+      cls='warn';
+      html='<b>Kualitas air mulai kurang ideal.</b> Sebagian ikan tampak lebih waspada dari biasanya.';
+    } else {
+      cls='good';
+      html='<b>Kondisi air optimal.</b> Semua ikan berenang tenang di tengah akuarium.';
+    }
+    popup.className='popup show '+cls;
+    popup.innerHTML=html;
+  }
+
+  function updateStatusStrip(zSuhu,zPh,zDo){
+    const items=[
+      {label:'Suhu', z:zSuhu},
+      {label:'pH', z:zPh},
+      {label:'DO', z:zDo}
+    ];
+    statusStrip.innerHTML=items.map(it=>{
+      const text = it.z==='good' ? 'stabil' : it.z==='warn' ? 'perlu perhatian' : 'kritis';
+      return '<div class="status-pill '+it.z+'"><i></i>'+it.label+' '+text+'</div>';
+    }).join('');
+  }
+
+  function update(){
+    const suhu=+suhuInput.value, ph=+phInput.value, doLevel=+doInput.value;
+    suhuVal.textContent=suhu+'°C';
+    phVal.textContent=ph.toFixed(1);
+    doVal.textContent=doLevel+' mg/L';
+
+    const zSuhu=zoneOf('suhu',suhu), zPh=zoneOf('ph',ph), zDo=zoneOf('do',doLevel);
+    suhuVal.className='slider-value '+zSuhu;
+    phVal.className='slider-value '+zPh;
+    doVal.className='slider-value '+zDo;
+
+    updateStatusStrip(zSuhu,zPh,zDo);
+    updatePopup(suhu,ph,doLevel,zSuhu,zPh,zDo);
+  }
+
+  [suhuInput,phInput,doInput].forEach(inp=>inp.addEventListener('input', update));
+  window.addEventListener('load', ()=>{ measure(); update(); requestAnimationFrame(tick); });
+  measure();
+  update();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
